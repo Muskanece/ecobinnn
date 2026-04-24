@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>EcoBin | Smart Waste Command Center</title>
+
+<!-- Leaflet + Routing -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.min.js"></script>
+
+<!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, query, where, orderBy, limit, addDoc, onSnapshot, deleteDoc, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDBoh8vElvEa0KRCd5EdZQy1QDNP87fBss",
+    authDomain: "ecobin-12da9.firebaseapp.com",
+    projectId: "ecobin-12da9",
+    storageBucket: "ecobin-12da9.firebasestorage.app",
+    messagingSenderId: "548771014103",
+    appId: "1:548771014103:web:254644c045fb698eb99792"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  window.firebase = { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut };
+  window.firestoreHelpers = { collection, doc, setDoc, getDoc, getDocs, updateDoc, query, where, orderBy, limit, addDoc, onSnapshot, deleteDoc, serverTimestamp, Timestamp };
+</script>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', 'Poppins', Tahoma, Geneva, Verdana, sans-serif;
+    background: radial-gradient(circle at 20% 30%, #0a2f1f, #031007);
+    color: #e8f5e9;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    background: radial-gradient(circle, #7cb342, #2e7d32);
+    border-radius: 50%;
+    filter: blur(1.5px);
+    opacity: 0.4;
+    animation: floatOrganic linear infinite;
+}
+
+@keyframes floatOrganic {
+    0% { transform: translateY(100vh) translateX(0) rotate(0deg); opacity: 0; }
+    20% { opacity: 0.6; }
+    80% { opacity: 0.5; }
+    100% { transform: translateY(-100vh) translateX(70px) rotate(360deg); opacity: 0; }
+}
+
+.login {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(20px);
+    border-radius: 2.5rem;
+    padding: 2rem;
+    width: 400px;
+    margin: 10vh auto;
+    border: 1px solid rgba(76, 175, 80, 0.6);
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    animation: fadeSlideUp 0.5s ease;
+    position: relative;
+    z-index: 2;
+}
+
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.login h1 {
+    background: linear-gradient(135deg, #b9f6ca, #4caf50);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-size: 1.9rem;
+}
+
+.role-selector {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin: 15px 0;
+}
+
+.role-option {
+    padding: 8px 20px;
+    border-radius: 40px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.1);
+    transition: all 0.2s;
+}
+
+.role-option.selected {
+    background: linear-gradient(95deg, #2e7d32, #4caf50);
+    box-shadow: 0 0 10px rgba(76,175,80,0.5);
+}
+
+.role-option:hover {
+    background: rgba(76,175,80,0.4);
+}
+
+input, textarea {
+    padding: 12px 18px;
+    margin: 12px 0;
+    width: 100%;
+    border-radius: 60px;
+    border: none;
+    background: #f1f8e9;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    outline: none;
+}
+
+input:focus {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.5);
+}
+
+button {
+    padding: 10px 24px;
+    margin: 8px;
+    border: none;
+    border-radius: 60px;
+    background: linear-gradient(95deg, #2e7d32, #4caf50);
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+button:hover {
+    transform: translateY(-2px) scale(1.02);
+    filter: brightness(1.08);
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
+}
+
+.logout {
+    background: linear-gradient(95deg, #b91c1c, #d62828);
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 200;
+}
+
+.dashboard {
+    display: none;
+    padding: 20px;
+    position: relative;
+    z-index: 2;
+}
+
+.action-center {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 20px auto 15px;
+}
+
+.route-btn {
+    background: linear-gradient(115deg, #1b5e2a, #0f4c2a);
+    font-size: 1rem;
+    padding: 12px 28px;
+    min-width: 200px;
+}
+
+.cards {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin: 30px 0;
+}
+
+.card {
+    width: 330px;
+    background: rgba(12, 28, 20, 0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 2rem;
+    padding: 1.4rem;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    text-align: center;
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    border-color: #9c27b0;
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+}
+
+.status {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 40px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+.empty { background: #2e7d32; box-shadow: 0 0 6px #4caf50; }
+.medium { background: #f57c00; }
+.critical { background: #d32f2f; animation: pulseRed 1s infinite; }
+.gas-good { background: #ffc107; color: #1e2a1e; }
+.gas-warning { background: #f57c00; animation: pulseOrange 1.2s infinite; }
+.gas-critical { background: #d32f2f; animation: pulseRed 0.9s infinite; }
+
+@keyframes pulseRed {
+    0%, 100% { opacity: 1; background: #d32f2f; box-shadow: 0 0 5px #ff5252; }
+    50% { opacity: 0.85; background: #b71c1c; box-shadow: 0 0 15px #ff8a80; }
+}
+@keyframes pulseOrange {
+    0%, 100% { opacity: 1; background: #f57c00; }
+    50% { opacity: 0.8; background: #e65100; }
+}
+
+#map {
+    height: 420px;
+    width: 98%;
+    margin: 20px auto 10px;
+    border-radius: 32px;
+    border: 2px solid rgba(76, 175, 80, 0.5);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+.navigation-panel {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(16px);
+    border-radius: 28px;
+    width: 98%;
+    margin: 5px auto 15px;
+    padding: 12px 18px;
+    border: 1px solid #f9b43a;
+    transition: all 0.3s;
+}
+
+.nav-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.nav-header h4 {
+    color: #f9b43a;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-btn {
+    background: #2c3e66;
+    padding: 5px 12px;
+    font-size: 0.75rem;
+    margin: 0;
+}
+
+.nav-directions {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 20px;
+    padding: 12px;
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+
+.direction-step {
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.direction-icon {
+    font-size: 1.2rem;
+    min-width: 32px;
+    text-align: center;
+}
+
+.direction-text {
+    flex: 1;
+}
+
+.current-step {
+    background: rgba(249, 180, 58, 0.25);
+    border-left: 3px solid #f9b43a;
+    font-weight: bold;
+}
+
+.rewardBox {
+    background: linear-gradient(105deg, #f9b43a, #fb6b1e);
+    color: #1e2a3a;
+    padding: 8px 20px;
+    border-radius: 60px;
+    width: fit-content;
+    margin: 10px auto;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+}
+.rewardBox:hover { transform: scale(1.02); filter: brightness(1.02); }
+
+.alertBanner {
+    background: linear-gradient(95deg, #dc2f02, #9d0208);
+    padding: 14px;
+    font-weight: bold;
+    border-radius: 60px;
+    width: 90%;
+    margin: 15px auto;
+    display: none;
+    animation: glitchAlert 0.9s infinite;
+    text-align: center;
+}
+@keyframes glitchAlert {
+    0%, 100% { background: #dc2f02; box-shadow: 0 0 8px #ff8888; }
+    50% { background: #9d0208; box-shadow: 0 0 20px #ff4d4d; }
+}
+
+.leaderboard {
+    background: rgba(15, 35, 25, 0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    width: 320px;
+    margin: 20px auto;
+    padding: 15px;
+    text-align: left;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+.leaderboard ol { margin: 0; padding-left: 20px; }
+.leaderboard li { margin: 5px 0; }
+
+.complaints-view-box {
+    background: rgba(15, 35, 25, 0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    width: 90%;
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 15px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+.complaints-view-box h3 {
+    margin-bottom: 15px;
+    color: #f9b43a;
+}
+.complaint-item {
+    padding: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 8px;
+}
+.complaint-item strong {
+    color: #4caf50;
+}
+.complaint-date {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 5px;
+}
+.complaint-resolved {
+    color: #4caf50;
+    font-size: 11px;
+    margin-top: 5px;
+}
+
+.adminPanel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95%;
+    max-width: 1300px;
+    height: 85%;
+    background: rgba(10, 20, 15, 0.98);
+    backdrop-filter: blur(20px);
+    border-radius: 28px;
+    border: 2px solid #9c27b0;
+    z-index: 2000;
+    padding: 20px;
+    overflow-y: auto;
+}
+.closeAdmin {
+    float: right;
+    font-size: 28px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: white;
+}
+
+.sensor-status {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 11px;
+    z-index: 100;
+}
+.auto-refresh-status {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+    z-index: 100;
+    transition: 0.2s;
+}
+.connection-status {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    z-index: 100;
+}
+
+.truck-icon { font-size: 34px; background: transparent; border: none; filter: drop-shadow(0 0 4px #ffaa44); }
+.depot-icon { font-size: 30px; }
+
+.loading-spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.redeemModal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #1a3a2a, #0d2a1a);
+    color: white;
+    padding: 25px;
+    border-radius: 28px;
+    width: 350px;
+    z-index: 1001;
+    border: 1px solid #f9b43a;
+}
+.redeemOption {
+    background: rgba(255,255,255,0.1);
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+}
+.redeemOption:hover { background: rgba(249, 180, 58, 0.3); transform: translateX(5px); }
+
+.complaintBox {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    color: black;
+    padding: 20px;
+    border-radius: 28px;
+    width: 320px;
+    z-index: 1001;
+}
+.overlay {
+    display: none;
+    position: fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+}
+.cameraModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.96);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+.route-status {
+    text-align: center;
+    background: rgba(0,0,0,0.5);
+    padding: 6px 12px;
+    border-radius: 40px;
+    width: fit-content;
+    margin: 8px auto;
+    font-size: 13px;
+}
+
+.driver-only, .citizen-only, .admin-only {
+    display: none;
+}
+.unified-hardware {
+    background: rgba(0, 20, 10, 0.8);
+    backdrop-filter: blur(12px);
+    border-radius: 28px;
+    padding: 15px 20px;
+    margin: 15px auto;
+    width: 95%;
+    max-width: 850px;
+    border: 1px solid #4caf50;
+    text-align: center;
+}
+.unified-hardware h4 {
+    color: #f9b43a;
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+}
+.hardware-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    align-items: flex-end;
+}
+.hardware-group {
+    background: rgba(0,0,0,0.5);
+    border-radius: 48px;
+    padding: 8px 18px;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+.hardware-group label {
+    font-size: 13px;
+    font-weight: bold;
+}
+.hardware-group input {
+    width: 150px;
+    margin: 0;
+    padding: 8px 12px;
+}
+.refresh-btn-group {
+    background: rgba(0,0,0,0.5);
+    border-radius: 48px;
+    padding: 8px 18px;
+    display: inline-flex;
+    align-items: center;
+}
+.admin-test-buttons {
+    display: inline-flex;
+    gap: 10px;
+    margin-left: 10px;
+}
+
+.simple-graphs-container {
+    background: rgba(15, 35, 25, 0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    padding: 20px;
+    margin: 30px auto;
+    width: 95%;
+    max-width: 1100px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.simple-graphs-container h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #c8e6c9;
+}
+
+.graphs-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 25px;
+    margin-bottom: 20px;
+}
+
+.single-graph-box {
+    flex: 1;
+    min-width: 250px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 20px;
+    padding: 15px;
+    text-align: center;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.single-graph-box h4 {
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+.single-graph-box canvas {
+    max-height: 200px;
+    width: 100%;
+}
+
+.graph-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.graph-buttons button {
+    background: #2c3e66;
+    padding: 8px 18px;
+    margin: 5px;
+}
+
+/* User Table Styles */
+.users-table-container {
+    overflow-x: auto;
+    margin-top: 15px;
+    border-radius: 16px;
+}
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(0,0,0,0.5);
+    border-radius: 16px;
+    font-size: 13px;
+}
+.users-table th {
+    background: #1b5e2a;
+    padding: 12px;
+    text-align: left;
+    color: #c8e6c9;
+    position: sticky;
+    top: 0;
+}
+.users-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(76,175,80,0.2);
+    color: #e8f5e9;
+}
+.users-table tr:hover {
+    background: rgba(76,175,80,0.1);
+}
+.role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+}
+.role-admin { background: #9c27b0; }
+.role-driver { background: #ff9800; }
+.role-citizen { background: #4caf50; }
+.delete-btn {
+    background: #d32f2f;
+    padding: 5px 12px;
+    margin: 0;
+    font-size: 11px;
+    border-radius: 20px;
+    cursor: pointer;
+    border: none;
+    color: white;
+}
+.delete-btn:hover {
+    background: #b71c1c;
+}
+</style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<!-- LOGIN PANEL -->
+<div class="login" id="loginPage">
+    <h1>🌱 EcoBin Intelligence</h1>
+    <h3 style="font-weight: 400;">Smart Waste Ecosystem</h3>
+    
+    <div class="role-selector">
+        <div class="role-option" data-role="citizen" onclick="selectRole('citizen')">👤 Citizen</div>
+        <div class="role-option" data-role="driver" onclick="selectRole('driver')">🚛 Driver</div>
+        <div class="role-option" data-role="admin" onclick="selectRole('admin')">👑 Admin</div>
+    </div>
+    
+    <input type="email" id="loginUser" placeholder="Email" autocomplete="off">
+    <input type="text" id="loginDisplayName" placeholder="Display Name" autocomplete="off" style="display:none;">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button onclick="loginWithFirebase()">🔐 Access Dashboard</button>
+    <button onclick="showRegisterPanel()" style="background:#2c3e66;">📝 Register</button>
+    <p id="errorMsg" style="color:#ffaaaa; font-size:13px; margin-top:8px;"></p>
+</div>
+
+<div class="login" id="registerPage" style="display:none">
+    <h1>📝 Join Green Mission</h1>
+    <div class="role-selector">
+        <div class="role-option" data-role-reg="citizen" onclick="selectRegisterRole('citizen')">👤 Citizen</div>
+        <div class="role-option" data-role-reg="driver" onclick="selectRegisterRole('driver')">🚛 Driver</div>
+    </div>
+    <input type="email" id="regUser" placeholder="Email">
+    <input type="text" id="regDisplayName" placeholder="Display Name">
+    <input type="password" id="regPass" placeholder="Password">
+    <input type="password" id="regPass2" placeholder="Confirm Password">
+    <button onclick="registerWithFirebase()">✅ Register</button>
+    <button onclick="backToLogin()">⬅️ Back</button>
+    <p id="regErrorMsg" style="color:#ffaaaa;"></p>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div class="dashboard" id="dashboardPage">
+    <button class="logout" onclick="logoutFirebase()">🚪 Logout</button>
+    <div style="text-align:center; margin-bottom:5px;">
+        <button class="admin-btn admin-only" id="adminBtn" onclick="openAdminPanel()" style="background:#9c27b0;">👑 Admin Panel</button>
+    </div>
+    
+    <h1 style="text-align:center;">🗑️ SmartBin Command Center</h1>
+    <p style="text-align:center; font-size:12px;" id="welcomeUser"></p>
+    <p style="text-align:center; font-size:11px; color:#f9b43a;" id="roleBadge"></p>
+    
+    <div class="alertBanner" id="alertBanner">⚠️ CRITICAL: Dustbin >85% or Gas >85%! Immediate action required ⚠️</div>
+    
+    <!-- CITIZEN & ADMIN: Points & Rewards -->
+    <div class="citizen-only admin-only">
+        <div class="rewardBox" id="rewardBox" onclick="openRedeemModal()">
+            ⭐ My Points: <span id="rewardPoints">0</span> ⭐ <span style="font-size:10px;">(Click to Redeem)</span>
+        </div>
+        <div class="rewardBox">👑 Top Citizen: <span id="topUser">None</span></div>
+    </div>
+    
+    <!-- UNIFIED HARDWARE CONFIGURATION -->
+    <div class="unified-hardware" id="unifiedHardwarePanel">
+        <h4>🔧 IoT Hardware Configuration</h4>
+        <div class="hardware-row">
+            <div class="hardware-group">
+                <label>📡 ESP8266 Sensor IP:</label>
+                <input type="text" id="globalNodemcuIp" placeholder="192.168.43.136" value="192.168.43.136">
+                <button onclick="updateGlobalNodeMCU()">Connect</button>
+                <span id="adminTestSensorBtn" class="admin-test-buttons" style="display:none;">
+                    <button onclick="testConnection()" style="background:#2196f3;">Test Sensor</button>
+                </span>
+            </div>
+            <div class="hardware-group">
+                <label>📷 Camera IP (MJPEG):</label>
+                <input type="text" id="globalCameraIp" placeholder="192.168.43.6" value="192.168.43.6">
+                <button onclick="updateGlobalCamera()">Set Camera</button>
+                <span id="adminTestCamBtn" class="admin-test-buttons" style="display:none;">
+                    <button onclick="testCameraConnection()" style="background:#ff9800;">Test Cam</button>
+                    <button onclick="openCameraForBin()" style="background:#3b82f6;">🎥 Live View</button>
+                </span>
+            </div>
+            <div class="refresh-btn-group">
+                <button onclick="manualRefresh()" style="background:#3b82f6;">🔄 Manual Refresh</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- DRIVER & ADMIN: Route Optimization -->
+    <div class="driver-only admin-only">
+        <div class="action-center">
+            <button class="route-btn" id="optimizeRouteBtn" onclick="optimizeCollectionRoute()">🚛 Optimize Collection Route (AI)</button>
+        </div>
+        <div id="routeStatus" class="route-status"></div>
+    </div>
+    
+    <!-- CARDS SECTION -->
+    <div class="cards" id="cardsContainer">
+        <div style="text-align:center; width:100%;">Loading smart sensors...<div class="loading-spinner" style="margin:10px auto;"></div></div>
+    </div>
+    
+    <!-- SIMPLIFIED GRAPHS -->
+    <div class="simple-graphs-container">
+        <h3>📊 Historical Data Trends (Ultrasonic Real-time Data)</h3>
+        <div class="graphs-row">
+            <div class="single-graph-box">
+                <h4 style="color: #4caf50;">🗑️ Bin 1 (Girls Hostel)</h4>
+                <canvas id="bin1Chart" style="max-height: 200px; width: 100%;"></canvas>
+            </div>
+            <div class="single-graph-box">
+                <h4 style="color: #2196f3;">🗑️ Bin 2 (Boys Hostel)</h4>
+                <canvas id="bin2Chart" style="max-height: 200px; width: 100%;"></canvas>
+            </div>
+            <div class="single-graph-box">
+                <h4 style="color: #ff9800;">🌫️ Gas Level (Girls Hostel Area)</h4>
+                <canvas id="gasChartSimple" style="max-height: 200px; width: 100%;"></canvas>
+            </div>
+        </div>
+        <div class="graph-buttons">
+            <button onclick="loadHistoricalData('day')">📅 Last 24 Hours (Hourly)</button>
+            <button onclick="loadHistoricalData('week')">📆 Last 7 Days (Daily)</button>
+            <button onclick="loadHistoricalData('month')">📊 Last 30 Days (Daily)</button>
+        </div>
+    </div>
+    
+    <h2>📍 Real-time Bin Map</h2>
+    <div id="map"></div>
+    
+    <!-- DRIVER & ADMIN: Navigation Panel -->
+    <div class="driver-only admin-only">
+        <div class="navigation-panel" id="navPanel" style="display: none;">
+            <div class="nav-header">
+                <h4>🚚 <span id="navTitle">Live Navigation</span> <span id="navStepCounter"></span></h4>
+                <div class="nav-controls">
+                    <button class="nav-btn" id="prevStepBtn" onclick="prevNavigationStep()" disabled>◀ Prev</button>
+                    <button class="nav-btn" id="nextStepBtn" onclick="nextNavigationStep()" disabled>Next ▶</button>
+                    <button class="nav-btn" onclick="closeNavigationPanel()">✖ Close</button>
+                </div>
+            </div>
+            <div id="directionsList" class="nav-directions">
+                <div style="text-align:center; color:#aaa;">Click "Optimize Route" to get directions</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- DRIVER ONLY: View Complaints Box -->
+    <div class="driver-only">
+        <div class="complaints-view-box" id="driverComplaintsBox">
+            <h3>📢 Active Complaints</h3>
+            <div id="driverComplaintsList">Loading complaints...</div>
+        </div>
+    </div>
+    
+    <!-- CITIZEN & ADMIN: Leaderboard -->
+    <div class="citizen-only admin-only">
+        <div class="leaderboard">
+            <h3>🏆 Leaderboard (Eco Points)</h3>
+            <ol id="leaderboardList">
+                <li>No points yet</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<div class="adminPanel" id="adminPanel">
+    <button class="closeAdmin" onclick="closeAdminPanel()">&times;</button>
+    <h2>👑 Admin Dashboard</h2>
+    
+    <div style="display: flex; gap: 15px; margin: 15px 0; flex-wrap: wrap;">
+        <button onclick="exportAdminData()" style="background:#4caf50;">📥 Export CSV</button>
+        <button onclick="resolveAllResolvedBins()" style="background:#ff9800;">✅ Auto-Resolve Complaints</button>
+        <button onclick="refreshAdminPanel()" style="background:#2196f3;">🔄 Refresh Data</button>
+    </div>
+    
+    <h3>📋 Registered Users (Email, Display Name, Role, Points)</h3>
+    <div id="usersTableContainer" class="users-table-container">
+        <table class="users-table" id="usersTable">
+            <thead>
+                <tr><th>Email</th><th>Display Name</th><th>Role</th><th>Points</th><th>Action</th></tr>
+            </thead>
+            <tbody id="usersTableBody">
+                <tr><td colspan="5" style="text-align:center;">Loading users...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <h3 style="margin-top: 25px;">⚠️ Active Complaints (Critical Issues)</h3>
+    <div id="activeComplaintsList" style="max-height:300px; overflow-y:auto; margin-bottom:20px;"></div>
+    
+    <h3>✅ Resolved Complaints History</h3>
+    <div id="resolvedComplaintsList" style="max-height:250px; overflow-y:auto;"></div>
+</div>
+<div class="overlay" id="redeemOverlay" onclick="closeRedeemModal()"></div>
+<div class="redeemModal" id="redeemModal"><span class="closeRedeem" onclick="closeRedeemModal()" style="float:right; font-size:24px; cursor:pointer;">&times;</span><h3>🎁 Redeem Your Eco Points</h3><div id="redeemOptions"></div><div id="redeemMessage"></div></div>
+<div class="cameraModal" id="cameraModal">
+    <div style="background:#111; border-radius:32px; padding:20px; width:90%; max-width:900px; text-align:center;">
+        <button onclick="closeCameraModal()" style="float:right;">✖</button>
+        <h3 style="color:#f9b43a;">📡 Live Camera Feed</h3>
+        <img id="liveCamFeed" style="width:100%; max-height:70vh; border-radius:24px; border:2px solid #4caf50; background:#000;" alt="Camera stream">
+        <div style="display:flex; gap:12px; margin-top:15px; justify-content:center;">
+            <button onclick="refreshCameraStream()">🔄 Refresh Stream</button>
+            <button onclick="takeSnapshot()">📸 Snapshot</button>
+        </div>
+        <p style="font-size:12px; margin-top:12px;">Camera IP: <span id="cameraIpDisplay">192.168.43.6</span></p>
+    </div>
+</div>
+<div class="overlay" id="complaintOverlay"></div>
+<div class="complaintBox" id="complaintBox"><h3>📢 Report Issue</h3><p id="selectedBinName" style="font-weight:bold;"></p><p id="complaintWarning" style="color:red; font-size:12px; display:none;"></p><input id="complainUserName" placeholder="Your Name"><textarea id="complainMessage" rows="3" placeholder="Describe problem..."></textarea><button onclick="submitComplaintForm()">Submit</button><button onclick="closeComplaintPanel()">Cancel</button></div>
+
+<div class="sensor-status" id="sensorStatus">📡 Enter ESP8266 IP and click Connect</div>
+<div class="auto-refresh-status" id="autoRefreshStatus">🔄 Auto-refresh: 40s</div>
+<div class="connection-status" id="connectionStatus">🔌 Checking connection...</div>
+
+<script>
+// ========== GLOBAL VARIABLES ==========
+let currentUser = null, currentUserRole = null, currentUserPoints = 0;
+let unsubscribeSensorData = null, unsubscribeLeaderboard = null, unsubscribeComplaints = null;
+let selectedRole = "citizen", selectedRegisterRole = "citizen";
+let isRendering = false;
+let bin1Chart = null, bin2Chart = null, gasChartSimple = null;
+
+const DEPOT = { lat: 25.772423309875606, lng: 87.46993186745198, name: "Municipal Corporation 🏢" };
+const BIN1 = { lat: 25.789089556813586, lng: 87.51917180978087, name: "Dustbin 1 - Girls Hostel", location: "Girls Hostel" };
+const BIN2 = { lat: 25.762395076411813, lng: 87.46767433861588, name: "Dustbin 2 - Boys Hostel", location: "Boys Hostel" };
+const GAS_SENSOR = { lat: 25.789089556813586, lng: 87.51917180978087, name: "Air Quality Monitor - Girls Hostel Area 🌫️", location: "Girls Hostel" };
+
+let NODEMCU_URL = localStorage.getItem("nodemcu_url") || "192.168.43.136";
+let CAMERA_BASE_URL = localStorage.getItem("ecobin_camera_ip") || "192.168.43.6";
+let bins = [ { ...BIN1, level: 0, isCritical: false }, { ...BIN2, level: 0, isCritical: false } ];
+let gasData = { level: 0, isCritical: false, isWarning: false, airQuality: "Fresh", lat: GAS_SENSOR.lat, lng: GAS_SENSOR.lng, name: GAS_SENSOR.name, location: GAS_SENSOR.location };
+
+let globalMap = null, activeRoutingControl = null, truckMarker = null, depotMarker = null;
+let charts = [], gasChart = null;
+let autoRefreshInterval = null, refreshCountdownInterval = null, nextRefreshTime = null;
+const AUTO_TIME = 40000, BIN_THRESHOLD = 85, GAS_CRIT = 85, GAS_WARN = 80;
+let currentRouteSteps = [], currentStepIndex = 0, currentOptimizedRoute = [];
+
+let previousBinLevels = { bin1: 0, bin2: 0, gas: 0 };
+
+// ========== UI Helpers ==========
+function selectRole(role) { 
+    selectedRole = role; 
+    document.querySelectorAll('.role-option').forEach(opt => { 
+        opt.classList.remove('selected'); 
+        if(opt.getAttribute('data-role') === role) opt.classList.add('selected'); 
+    }); 
+    const dnField = document.getElementById('loginDisplayName'); 
+    dnField.style.display = (role === 'driver') ? 'block' : 'none'; 
+    if(role !== 'driver') dnField.value = ''; 
+}
+
+function selectRegisterRole(role) { 
+    selectedRegisterRole = role; 
+    document.querySelectorAll('[data-role-reg]').forEach(opt => { 
+        opt.classList.remove('selected'); 
+        if(opt.getAttribute('data-role-reg') === role) opt.classList.add('selected'); 
+    }); 
+}
+
+function applyRoleBasedUI(role) {
+    document.querySelectorAll('.driver-only, .citizen-only, .admin-only').forEach(el => el.style.display = 'none');
+    if (role === 'driver') { 
+        document.querySelectorAll('.driver-only').forEach(el => el.style.display = 'block'); 
+        document.getElementById('adminBtn').style.display = 'none'; 
+        document.getElementById('roleBadge').innerHTML = '🚛 DRIVER MODE - Collection & Navigation'; 
+        loadDriverComplaints(); 
+    }
+    else if (role === 'citizen') { 
+        document.querySelectorAll('.citizen-only').forEach(el => el.style.display = 'block'); 
+        document.getElementById('adminBtn').style.display = 'none'; 
+        document.getElementById('roleBadge').innerHTML = '👤 CITIZEN MODE - Report Issues & Earn Points'; 
+    }
+    else if (role === 'admin') { 
+        document.querySelectorAll('.driver-only, .citizen-only, .admin-only').forEach(el => el.style.display = 'block'); 
+        document.getElementById('adminBtn').style.display = 'inline-block'; 
+        document.getElementById('roleBadge').innerHTML = '👑 ADMIN MODE - Full Access'; 
+    }
+    const isAdmin = (role === 'admin');
+    const testSensorBtn = document.getElementById('adminTestSensorBtn');
+    const testCamBtn = document.getElementById('adminTestCamBtn');
+    if(testSensorBtn) testSensorBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    if(testCamBtn) testCamBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+}
+
+function updateGlobalNodeMCU() { 
+    let newIp = document.getElementById("globalNodemcuIp").value.trim(); 
+    if(newIp) { 
+        NODEMCU_URL = newIp; 
+        localStorage.setItem("nodemcu_url", NODEMCU_URL); 
+        testConnection(); 
+        manualRefresh(); 
+    } 
+}
+
+function updateGlobalCamera() { 
+    let newIp = document.getElementById("globalCameraIp").value.trim(); 
+    if(newIp) { 
+        CAMERA_BASE_URL = newIp; 
+        localStorage.setItem("ecobin_camera_ip", CAMERA_BASE_URL); 
+        document.getElementById("cameraIpDisplay").innerText = CAMERA_BASE_URL; 
+        alert(`Camera IP set to ${CAMERA_BASE_URL}`); 
+    } 
+}
+
+// ========== ADMIN PANEL FUNCTIONS ==========
+async function loadUsersTable() {
+    if (!window.firebase?.db) return;
+    
+    try {
+        const usersRef = window.firestoreHelpers.collection(window.firebase.db, "users");
+        const usersSnapshot = await window.firestoreHelpers.getDocs(usersRef);
+        
+        const tbody = document.getElementById("usersTableBody");
+        if (!tbody) return;
+        
+        if (usersSnapshot.empty) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No users found</td></tr>';
+            return;
+        }
+        
+        let html = "";
+        for (const doc of usersSnapshot.docs) {
+            const userData = doc.data();
+            const isAdminUser = userData.email === "admin@ecobin.com";
+            const roleClass = userData.role === 'admin' ? 'role-admin' : (userData.role === 'driver' ? 'role-driver' : 'role-citizen');
+            const roleName = userData.role || 'citizen';
+            
+            html += `<tr>
+                        <td style="padding:10px 12px;">${userData.email || '-'}</td>
+                        <td style="padding:10px 12px;">${userData.displayName || '-'}</td>
+                        <td style="padding:10px 12px;"><span class="role-badge ${roleClass}">${roleName}</span></td>
+                        <td style="padding:10px 12px; color:#f9b43a; font-weight:bold;">${userData.points || 0}</td>
+                        <td style="padding:10px 12px;">${!isAdminUser ? `<button class="delete-btn" onclick="deleteUserFirebase('${doc.id}')">Delete</button>` : '<span style="color:#aaa;">Protected</span>'}</td>
+                     </tr>`;
+        }
+        tbody.innerHTML = html;
+    } catch(error) {
+        console.error("Error loading users:", error);
+        const tbody = document.getElementById("usersTableBody");
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Error loading users</td></tr>';
+    }
+}
+
+function openAdminPanel() {
+    if (!currentUser || currentUserRole !== "admin") {
+        alert("Admin access only");
+        return;
+    }
+    loadUsersTable();
+    loadActiveComplaintsForAdmin();
+    document.getElementById("adminPanel").style.display = "block";
+}
+
+function closeAdminPanel() { 
+    document.getElementById("adminPanel").style.display = "none"; 
+}
+
+async function deleteUserFirebase(userId) {
+    if (confirm("Delete this user permanently?")) {
+        try {
+            await window.firestoreHelpers.deleteDoc(window.firestoreHelpers.doc(window.firebase.db, "users", userId));
+            alert("User deleted successfully");
+            await loadUsersTable();
+        } catch(error) {
+            alert("Error deleting user: " + error.message);
+        }
+    }
+}
+
+async function exportAdminData() {
+    try {
+        const usersRef = window.firestoreHelpers.collection(window.firebase.db, "users");
+        const snapshot = await window.firestoreHelpers.getDocs(usersRef);
+        let csv = "Email,Display Name,Role,Points\n";
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            csv += `"${data.email || ''}","${data.displayName || ''}","${data.role || 'citizen'}",${data.points || 0}\n`;
+        });
+        const blob = new Blob([csv], { type: "text/csv" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "ecobin_users_data.csv";
+        a.click();
+        URL.revokeObjectURL(a.href);
+        alert("Export complete!");
+    } catch(error) {
+        alert("Error exporting data: " + error.message);
+    }
+}
+
+function refreshAdminPanel() {
+    loadUsersTable();
+    loadActiveComplaintsForAdmin();
+}
+
+// ========== COMPLAINT MANAGEMENT ==========
+async function loadActiveComplaintsForAdmin() {
+    if (!window.firebase?.db) return;
+    
+    const complaintsRef = window.firestoreHelpers.collection(window.firebase.db, "complaints");
+    const q = window.firestoreHelpers.query(complaintsRef, window.firestoreHelpers.where("resolved", "==", false), window.firestoreHelpers.orderBy("timestamp", "desc"));
+    const snapshot = await window.firestoreHelpers.getDocs(q);
+    
+    let html = `<table style="width:100%; border-collapse: collapse;">
+                    <thead><tr style="background:#1b5e2a;"><th style="padding:10px;">Bin Name</th><th style="padding:10px;">User</th><th style="padding:10px;">Message</th><th style="padding:10px;">Date</th><th style="padding:10px;">Points</th><th style="padding:10px;">Action</th></tr></thead>
+                    <tbody>`;
+    snapshot.forEach(doc => {
+        const c = doc.data();
+        const dateStr = c.timestamp ? new Date(c.timestamp.toDate()).toLocaleString() : "Unknown";
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+                     <td style="padding:10px;">${c.binName}</td>
+                     <td style="padding:10px;">${c.username}</td>
+                     <td style="padding:10px;">${c.message.substring(0, 50)}...</td>
+                     <td style="padding:10px;">${dateStr}</td>
+                     <td style="padding:10px;">+${c.pointsAwarded}</td>
+                     <td style="padding:10px;"><button onclick="resolveComplaintManually('${doc.id}')" style="background:#4caf50; padding:5px 10px;">Resolve</button></td>
+                    </tr>`;
+    });
+    html += `</tbody></table>`;
+    if(snapshot.empty) html = "<p style='text-align:center; padding:20px;'>No active complaints</p>";
+    document.getElementById("activeComplaintsList").innerHTML = html;
+    
+    // Load resolved complaints
+    const resolvedQ = window.firestoreHelpers.query(complaintsRef, window.firestoreHelpers.where("resolved", "==", true), window.firestoreHelpers.orderBy("resolvedAt", "desc"), window.firestoreHelpers.limit(20));
+    const resolvedSnapshot = await window.firestoreHelpers.getDocs(resolvedQ);
+    let resolvedHtml = "";
+    resolvedSnapshot.forEach(doc => {
+        const c = doc.data();
+        const dateStr = c.resolvedAt ? new Date(c.resolvedAt.toDate()).toLocaleString() : "Unknown";
+        resolvedHtml += `<div style="padding:8px; border-bottom:1px solid rgba(76,175,80,0.2);">
+                            <strong>${c.binName}</strong> - Reported by ${c.username}<br>
+                            Resolved: ${dateStr} ${c.autoResolved ? '(Auto)' : '(Manual)'}
+                         </div>`;
+    });
+    if(resolvedSnapshot.empty) resolvedHtml = "<p>No resolved complaints</p>";
+    document.getElementById("resolvedComplaintsList").innerHTML = resolvedHtml;
+}
+
+async function resolveComplaintManually(complaintId) {
+    if(confirm("Mark this complaint as resolved?")) {
+        await window.firestoreHelpers.updateDoc(window.firestoreHelpers.doc(window.firebase.db, "complaints", complaintId), {
+            resolved: true,
+            resolvedAt: window.firestoreHelpers.serverTimestamp(),
+            autoResolved: false
+        });
+        alert("Complaint resolved successfully!");
+        loadActiveComplaintsForAdmin();
+        loadDriverComplaints();
+    }
+}
+
+async function autoResolveComplaintsForBin(binName) {
+    if (!window.firebase?.db) return;
+    
+    const complaintsRef = window.firestoreHelpers.collection(window.firebase.db, "complaints");
+    const q = window.firestoreHelpers.query(
+        complaintsRef,
+        window.firestoreHelpers.where("binName", "==", binName),
+        window.firestoreHelpers.where("resolved", "==", false)
+    );
+    const snapshot = await window.firestoreHelpers.getDocs(q);
+    
+    if (!snapshot.empty) {
+        for (const doc of snapshot.docs) {
+            await window.firestoreHelpers.updateDoc(window.firestoreHelpers.doc(window.firebase.db, "complaints", doc.id), {
+                resolved: true,
+                resolvedAt: window.firestoreHelpers.serverTimestamp(),
+                autoResolved: true
+            });
+        }
+        if (currentUserRole === 'driver') loadDriverComplaints();
+        if (currentUserRole === 'admin') loadActiveComplaintsForAdmin();
+    }
+}
+
+async function autoResolveGasComplaint() {
+    if (!window.firebase?.db) return;
+    
+    const complaintsRef = window.firestoreHelpers.collection(window.firebase.db, "complaints");
+    const q = window.firestoreHelpers.query(
+        complaintsRef,
+        window.firestoreHelpers.where("binName", "==", "Air Quality Monitor - Girls Hostel Area 🌫️"),
+        window.firestoreHelpers.where("resolved", "==", false)
+    );
+    const snapshot = await window.firestoreHelpers.getDocs(q);
+    
+    if (!snapshot.empty && !gasData.isCritical) {
+        for (const doc of snapshot.docs) {
+            await window.firestoreHelpers.updateDoc(window.firestoreHelpers.doc(window.firebase.db, "complaints", doc.id), {
+                resolved: true,
+                resolvedAt: window.firestoreHelpers.serverTimestamp(),
+                autoResolved: true
+            });
+        }
+        if (currentUserRole === 'driver') loadDriverComplaints();
+        if (currentUserRole === 'admin') loadActiveComplaintsForAdmin();
+    }
+}
+
+async function checkAndAutoResolveComplaints() {
+    if (previousBinLevels.bin1 >= BIN_THRESHOLD && bins[0].level < BIN_THRESHOLD) {
+        await autoResolveComplaintsForBin(bins[0].name);
+    }
+    if (previousBinLevels.bin2 >= BIN_THRESHOLD && bins[1].level < BIN_THRESHOLD) {
+        await autoResolveComplaintsForBin(bins[1].name);
+    }
+    if (previousBinLevels.gas >= GAS_CRIT && gasData.level < GAS_CRIT) {
+        await autoResolveGasComplaint();
+    }
+    previousBinLevels.bin1 = bins[0].level;
+    previousBinLevels.bin2 = bins[1].level;
+    previousBinLevels.gas = gasData.level;
+}
+
+async function resolveAllResolvedBins() {
+    if(confirm("Auto-resolve all complaints for bins that are no longer critical?")) {
+        await autoResolveComplaintsForBin(bins[0].name);
+        await autoResolveComplaintsForBin(bins[1].name);
+        await autoResolveGasComplaint();
+        alert("Auto-resolution completed!");
+        loadActiveComplaintsForAdmin();
+        loadDriverComplaints();
+    }
+}
+
+async function checkActiveComplaint(binName) {
+    if (!window.firebase?.db) return false;
+    const complaintsRef = window.firestoreHelpers.collection(window.firebase.db, "complaints");
+    const q = window.firestoreHelpers.query(
+        complaintsRef,
+        window.firestoreHelpers.where("binName", "==", binName),
+        window.firestoreHelpers.where("resolved", "==", false)
+    );
+    const snapshot = await window.firestoreHelpers.getDocs(q);
+    return !snapshot.empty;
+}
+
+async function submitComplaintForm() { 
+    let uname = document.getElementById("complainUserName").value.trim(); 
+    let msg = document.getElementById("complainMessage").value.trim(); 
+    if (!uname || !msg) { alert("Fill all fields"); return; } 
+    
+    const hasActiveComplaint = await checkActiveComplaint(activeComplaintItem);
+    if(hasActiveComplaint) {
+        alert(`❌ A complaint for "${activeComplaintItem}" is already pending resolution!\n\nPlease wait until the issue is resolved.`);
+        closeComplaintPanel();
+        return;
+    }
+    
+    let isBinCritical = false;
+    if (activeComplaintItem.includes("Dustbin 1")) {
+        isBinCritical = bins[0].isCritical;
+    } else if (activeComplaintItem.includes("Dustbin 2")) {
+        isBinCritical = bins[1].isCritical;
+    } else if (activeComplaintItem.includes("Air Quality")) {
+        isBinCritical = gasData.isCritical;
+    }
+    
+    if (!isBinCritical) {
+        alert(`✅ The issue at "${activeComplaintItem}" has been resolved already!\n\nNo complaint needed.`);
+        closeComplaintPanel();
+        return;
+    }
+    
+    let pts = 10;
+    
+    await window.firestoreHelpers.addDoc(window.firestoreHelpers.collection(window.firebase.db, "complaints"), { 
+        username: uname, 
+        binName: activeComplaintItem, 
+        message: msg, 
+        isCritical: true, 
+        pointsAwarded: pts, 
+        resolved: false,
+        timestamp: window.firestoreHelpers.serverTimestamp(), 
+        userId: currentUser ? currentUser.uid : null 
+    }); 
+    
+    if (currentUser) await updateUserPoints(pts); 
+    
+    alert(`✅ Complaint submitted for "${activeComplaintItem}"! +${pts} points awarded!`); 
+    closeComplaintPanel(); 
+    
+    if (currentUserRole === 'driver') loadDriverComplaints();
+    if (currentUserRole === 'admin') loadActiveComplaintsForAdmin();
+}
+
+async function loadDriverComplaints() { 
+    if (!window.firebase?.db) return; 
+    const complaintsRef = window.firestoreHelpers.collection(window.firebase.db, "complaints"); 
+    const q = window.firestoreHelpers.query(complaintsRef, window.firestoreHelpers.where("resolved", "==", false), window.firestoreHelpers.orderBy("timestamp", "desc")); 
+    const snapshot = await window.firestoreHelpers.getDocs(q); 
+    const container = document.getElementById("driverComplaintsList"); 
+    if (container) { 
+        if (snapshot.empty) container.innerHTML = "<p style='text-align:center; color:#aaa;'>No active complaints.</p>"; 
+        else { 
+            container.innerHTML = ""; 
+            snapshot.forEach(doc => { 
+                const c = doc.data(); 
+                const dateStr = c.timestamp ? new Date(c.timestamp.toDate()).toLocaleString() : "Unknown"; 
+                const div = document.createElement("div"); 
+                div.className = "complaint-item"; 
+                div.innerHTML = `<strong>📢 ${c.binName}</strong><br><span>👤 ${c.username}: ${c.message}</span><br><div class="complaint-date">📅 ${dateStr}</div><div class="complaint-resolved">⏳ Pending Resolution</div>`; 
+                container.appendChild(div); 
+            }); 
+        } 
+    } 
+}
+
+// ========== ROUTE OPTIMIZATION FUNCTIONS ==========
+function getOptimizedRoute(criticalLocations) {
+    let route = [{lat: DEPOT.lat, lng: DEPOT.lng, name: DEPOT.name, isDepot: true}];
+    let remaining = [...criticalLocations];
+    let curr = {lat: DEPOT.lat, lng: DEPOT.lng};
+    
+    while(remaining.length) {
+        let idx = 0, dist = Infinity;
+        for(let i = 0; i < remaining.length; i++) {
+            let d = calculateDistance(curr.lat, curr.lng, remaining[i].lat, remaining[i].lng);
+            if(d < dist) {
+                dist = d;
+                idx = i;
+            }
+        }
+        route.push(remaining[idx]);
+        curr = {lat: remaining[idx].lat, lng: remaining[idx].lng};
+        remaining.splice(idx, 1);
+    }
+    route.push({lat: DEPOT.lat, lng: DEPOT.lng, name: "Return to Depot", isDepot: true});
+    return route;
+}
+
+async function optimizeCollectionRoute() {
+    if(!globalMap) return;
+    
+    let criticalLocations = [];
+    
+    bins.forEach(b => {
+        if(b.level >= BIN_THRESHOLD) {
+            criticalLocations.push({
+                lat: b.lat,
+                lng: b.lng,
+                name: b.name,
+                location: b.location,
+                type: "bin"
+            });
+        }
+    });
+    
+    if(gasData.isCritical) {
+        criticalLocations.push({
+            lat: gasData.lat,
+            lng: gasData.lng,
+            name: gasData.name,
+            location: gasData.location,
+            type: "gas"
+        });
+    }
+    
+    if(criticalLocations.length === 0) {
+        document.getElementById("routeStatus").innerHTML = "✅ No critical issues (bins <85% and gas <85%).";
+        setTimeout(() => document.getElementById("routeStatus").innerHTML = "", 3000);
+        return;
+    }
+    
+    let route = getOptimizedRoute(criticalLocations);
+    currentOptimizedRoute = route;
+    currentRouteSteps = generateTurnByTurn(route);
+    currentStepIndex = 0;
+    displayNavigationPanel(currentRouteSteps);
+    
+    if(activeRoutingControl && activeRoutingControl.polyline) 
+        globalMap.removeLayer(activeRoutingControl.polyline);
+    
+    let latlngs = route.map(p => L.latLng(p.lat, p.lng));
+    let polyline = L.polyline(latlngs, {color: '#ff5555', weight: 5, dashArray: '8,8'}).addTo(globalMap);
+    activeRoutingControl = {polyline};
+    globalMap.fitBounds(L.latLngBounds(latlngs), {padding: [50,50]});
+    
+    let binCount = criticalLocations.filter(l => l.type === "bin").length;
+    let gasCount = criticalLocations.filter(l => l.type === "gas").length;
+    let msg = `🚛 Route: ${binCount} bin(s)`;
+    if(gasCount > 0) msg += ` + ${gasCount} Gas Sensor(s)`;
+    msg += ` | Turn-by-turn ready ↓`;
+    document.getElementById("routeStatus").innerHTML = msg;
+    
+    startTruckAnimation(route);
+}
+
+// ========== GRAPH FUNCTIONS ==========
+function generateRealisticPercentage(day, maxValue = 95) {
+    const pattern = Math.sin(day * 0.5) * 20 + 40 + (Math.random() * 15);
+    return Math.min(maxValue, Math.max(15, Math.floor(pattern)));
+}
+
+async function loadHistoricalData(period = 'day') {
+    if (!window.firebase?.db) return;
+    
+    const historyRef = window.firestoreHelpers.collection(window.firebase.db, "history");
+    let startDate;
+    const now = new Date();
+    
+    switch(period) {
+        case 'day': startDate = new Date(now - 24 * 60 * 60 * 1000); break;
+        case 'week': startDate = new Date(now - 7 * 24 * 60 * 60 * 1000); break;
+        case 'month': startDate = new Date(now - 30 * 24 * 60 * 60 * 1000); break;
+        default: startDate = new Date(now - 24 * 60 * 60 * 1000);
+    }
+    
+    const q = window.firestoreHelpers.query(
+        historyRef,
+        window.firestoreHelpers.where("timestamp", ">=", window.firestoreHelpers.Timestamp.fromDate(startDate)),
+        window.firestoreHelpers.orderBy("timestamp", "asc")
+    );
+    
+    const snapshot = await window.firestoreHelpers.getDocs(q);
+    
+    if (period === 'day') {
+        const hourlyData = {};
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            const date = d.timestamp.toDate();
+            const hourKey = date.getHours();
+            if (!hourlyData[hourKey]) hourlyData[hourKey] = { bin1: [], bin2: [], gas: [] };
+            if(d.bin1 !== undefined) hourlyData[hourKey].bin1.push(d.bin1);
+            if(d.bin2 !== undefined) hourlyData[hourKey].bin2.push(d.bin2);
+            if(d.gas !== undefined) hourlyData[hourKey].gas.push(d.gas);
+        });
+        
+        const labels = [], bin1Data = [], bin2Data = [], gasDataArr = [];
+        for (let h = 0; h < 24; h++) {
+            labels.push(`${h}:00`);
+            if (hourlyData[h] && hourlyData[h].bin1.length > 0) {
+                bin1Data.push(Math.round(hourlyData[h].bin1.reduce((a, b) => a + b, 0) / hourlyData[h].bin1.length));
+                bin2Data.push(Math.round(hourlyData[h].bin2.reduce((a, b) => a + b, 0) / hourlyData[h].bin2.length));
+                gasDataArr.push(Math.round(hourlyData[h].gas.reduce((a, b) => a + b, 0) / hourlyData[h].gas.length));
+            } else {
+                bin1Data.push(generateRealisticPercentage(h, 85));
+                bin2Data.push(generateRealisticPercentage(h + 12, 85));
+                gasDataArr.push(generateRealisticPercentage(h + 6, 70));
+            }
+        }
+        updateSimpleGraphs(labels, bin1Data, bin2Data, gasDataArr);
+    } else if (period === 'week') {
+        const dailyData = {};
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            const date = d.timestamp.toDate();
+            const dayKey = date.toISOString().split('T')[0];
+            if (!dailyData[dayKey]) dailyData[dayKey] = { bin1: [], bin2: [], gas: [] };
+            if(d.bin1 !== undefined) dailyData[dayKey].bin1.push(d.bin1);
+            if(d.bin2 !== undefined) dailyData[dayKey].bin2.push(d.bin2);
+            if(d.gas !== undefined) dailyData[dayKey].gas.push(d.gas);
+        });
+        
+        const labels = [], bin1Data = [], bin2Data = [], gasDataArr = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dayKey = date.toISOString().split('T')[0];
+            const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            labels.push(dayLabel);
+            if (dailyData[dayKey] && dailyData[dayKey].bin1.length > 0) {
+                bin1Data.push(Math.round(dailyData[dayKey].bin1.reduce((a, b) => a + b, 0) / dailyData[dayKey].bin1.length));
+                bin2Data.push(Math.round(dailyData[dayKey].bin2.reduce((a, b) => a + b, 0) / dailyData[dayKey].bin2.length));
+                gasDataArr.push(Math.round(dailyData[dayKey].gas.reduce((a, b) => a + b, 0) / dailyData[dayKey].gas.length));
+            } else {
+                const dayOfWeek = date.getDay();
+                let pattern = 35 + (dayOfWeek === 0 || dayOfWeek === 6 ? 25 : 15);
+                pattern += Math.random() * 15;
+                bin1Data.push(Math.min(95, Math.max(20, Math.floor(pattern))));
+                bin2Data.push(Math.min(95, Math.max(25, Math.floor(pattern + 5))));
+                gasDataArr.push(Math.min(80, Math.max(15, Math.floor(pattern - 10))));
+            }
+        }
+        updateSimpleGraphs(labels, bin1Data, bin2Data, gasDataArr);
+    } else if (period === 'month') {
+        const dailyData = {};
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            const date = d.timestamp.toDate();
+            const dayKey = date.toISOString().split('T')[0];
+            if (!dailyData[dayKey]) dailyData[dayKey] = { bin1: [], bin2: [], gas: [] };
+            if(d.bin1 !== undefined) dailyData[dayKey].bin1.push(d.bin1);
+            if(d.bin2 !== undefined) dailyData[dayKey].bin2.push(d.bin2);
+            if(d.gas !== undefined) dailyData[dayKey].gas.push(d.gas);
+        });
+        
+        const labels = [], bin1Data = [], bin2Data = [], gasDataArr = [];
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dayKey = date.toISOString().split('T')[0];
+            const dayLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            labels.push(dayLabel);
+            if (dailyData[dayKey] && dailyData[dayKey].bin1.length > 0) {
+                bin1Data.push(Math.round(dailyData[dayKey].bin1.reduce((a, b) => a + b, 0) / dailyData[dayKey].bin1.length));
+                bin2Data.push(Math.round(dailyData[dayKey].bin2.reduce((a, b) => a + b, 0) / dailyData[dayKey].bin2.length));
+                gasDataArr.push(Math.round(dailyData[dayKey].gas.reduce((a, b) => a + b, 0) / dailyData[dayKey].gas.length));
+            } else {
+                const dayOfMonth = date.getDate();
+                let pattern = 30 + (dayOfMonth * 1.5) + Math.random() * 15;
+                pattern = Math.min(92, Math.max(20, pattern));
+                bin1Data.push(Math.floor(pattern));
+                bin2Data.push(Math.floor(pattern + Math.random() * 10));
+                gasDataArr.push(Math.floor(pattern - 15 + Math.random() * 20));
+            }
+        }
+        updateSimpleGraphs(labels, bin1Data, bin2Data, gasDataArr);
+    }
+}
+
+function updateSimpleGraphs(labels, bin1Data, bin2Data, gasDataArr) {
+    if (bin1Chart) bin1Chart.destroy();
+    if (bin2Chart) bin2Chart.destroy();
+    if (gasChartSimple) gasChartSimple.destroy();
+    
+    bin1Chart = new Chart(document.getElementById('bin1Chart'), {
+        type: 'line', data: { labels, datasets: [{ label: 'Fill Level (%)', data: bin1Data, borderColor: '#4caf50', backgroundColor: 'rgba(76,175,80,0.1)', tension: 0.3, fill: true, pointRadius: 3 }] },
+        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { min: 0, max: 100, title: { display: true, text: 'Level (%)', color: '#aaa' } }, x: { ticks: { autoSkip: true, maxTicksLimit: 8, color: '#ccc', rotation: -45 } } } }
+    });
+    bin2Chart = new Chart(document.getElementById('bin2Chart'), {
+        type: 'line', data: { labels, datasets: [{ label: 'Fill Level (%)', data: bin2Data, borderColor: '#2196f3', backgroundColor: 'rgba(33,150,243,0.1)', tension: 0.3, fill: true, pointRadius: 3 }] },
+        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { min: 0, max: 100, title: { display: true, text: 'Level (%)', color: '#aaa' } }, x: { ticks: { autoSkip: true, maxTicksLimit: 8, color: '#ccc', rotation: -45 } } } }
+    });
+    gasChartSimple = new Chart(document.getElementById('gasChartSimple'), {
+        type: 'line', data: { labels, datasets: [{ label: 'Gas Level (%)', data: gasDataArr, borderColor: '#ff9800', backgroundColor: 'rgba(255,152,0,0.1)', tension: 0.3, fill: true, pointRadius: 3 }] },
+        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { min: 0, max: 100, title: { display: true, text: 'Level (%)', color: '#aaa' } }, x: { ticks: { autoSkip: true, maxTicksLimit: 8, color: '#ccc', rotation: -45 } } } }
+    });
+}
+
+async function saveHistoricalData() { 
+    if (!window.firebase?.db) return; 
+    await window.firestoreHelpers.addDoc(window.firestoreHelpers.collection(window.firebase.db, "history"), { bin1: bins[0].level, bin2: bins[1].level, gas: gasData.level, timestamp: window.firestoreHelpers.serverTimestamp() }); 
+}
+
+// ========== CORE FUNCTIONS ==========
+async function testConnection() { 
+    updateSensorStatus("checking", `Testing sensor at ${NODEMCU_URL}...`); 
+    try { 
+        let response = await fetch(`http://${NODEMCU_URL}/status`, { mode: 'cors', cache: 'no-cache', signal: AbortSignal.timeout(3000) }); 
+        if (response.ok) { 
+            updateSensorStatus("connected", `✅ Sensor OK!`); 
+            document.getElementById("connectionStatus").innerHTML = "✅ ESP8266 Online"; 
+            return true; 
+        } 
+    } catch(err) { } 
+    updateSensorStatus("disconnected", `⚠️ Sensor offline (demo mode)`); 
+    document.getElementById("connectionStatus").innerHTML = "⚠️ ESP8266 Offline - Demo Mode"; 
+    return false; 
+}
+
+async function fetchESP8266Data() { 
+    if (bins[0].level === 0 && bins[1].level === 0 && gasData.level === 0) { 
+        bins[0].level = 42; bins[1].level = 68; gasData.level = 35; 
+        updateBinStatus(bins[0]); updateBinStatus(bins[1]); updateGasStatus(); 
+        updateDashboardUI(); updateMapMarkers(); 
+    } 
+    try { 
+        const controller = new AbortController(); 
+        const timeoutId = setTimeout(() => controller.abort(), 5000); 
+        let response = await fetch(`http://${NODEMCU_URL}/data`, { mode: 'cors', cache: 'no-cache', signal: controller.signal }); 
+        clearTimeout(timeoutId); 
+        if (response.ok) { 
+            let data = await response.json(); 
+            bins[0].level = Math.min(100, Math.max(0, data.bin1 || 0)); 
+            bins[1].level = Math.min(100, Math.max(0, data.bin2 || 0)); 
+            gasData.level = Math.min(100, Math.max(0, data.smell || 0)); 
+            const sensorRef = window.firestoreHelpers.doc(window.firebase.db, "sensors", "liveData"); 
+            await window.firestoreHelpers.setDoc(sensorRef, { bin1: bins[0].level, bin2: bins[1].level, gas: gasData.level, lastUpdated: window.firestoreHelpers.serverTimestamp() }, { merge: true }); 
+            updateBinStatus(bins[0]); updateBinStatus(bins[1]); updateGasStatus(); 
+            updateSensorStatus("connected", `✅ Live | Bin1:${bins[0].level}% Bin2:${bins[1].level}% Gas:${gasData.level}%`); 
+            document.getElementById("connectionStatus").innerHTML = "✅ ESP8266 Connected"; 
+            updateDashboardUI(); updateMapMarkers(); await saveHistoricalData(); 
+            await checkAndAutoResolveComplaints();
+            return true; 
+        } 
+    } catch(err) { console.log("ESP8266 not reachable, demo"); } 
+    
+    bins[0].level = Math.floor(Math.random() * 100); 
+    bins[1].level = Math.floor(Math.random() * 100); 
+    gasData.level = Math.floor(Math.random() * 100); 
+    if (Math.random() > 0.7) bins[0].level = 90 + Math.floor(Math.random() * 10); 
+    if (Math.random() > 0.7) bins[1].level = 90 + Math.floor(Math.random() * 10); 
+    if (Math.random() > 0.8) gasData.level = 90 + Math.floor(Math.random() * 10); 
+    updateBinStatus(bins[0]); updateBinStatus(bins[1]); updateGasStatus(); 
+    updateSensorStatus("disconnected", `⚠️ Demo mode | B1:${bins[0].level}% B2:${bins[1].level}% Gas:${gasData.level}%`); 
+    document.getElementById("connectionStatus").innerHTML = "⚠️ Demo Mode (Connect ESP8266 for live data)"; 
+    updateDashboardUI(); updateMapMarkers(); await saveHistoricalData(); 
+    await checkAndAutoResolveComplaints();
+    return false; 
+}
+
+function updateBinStatus(bin) { bin.isCritical = bin.level >= BIN_THRESHOLD; return bin; }
+function updateGasStatus() { gasData.isCritical = gasData.level >= GAS_CRIT; gasData.isWarning = gasData.level >= GAS_WARN; gasData.airQuality = gasData.level < GAS_WARN ? "Fresh 🟢" : (gasData.level < GAS_CRIT ? "Moderate Odor 🟠" : "Hazardous 🔴"); }
+
+async function loginWithFirebase() { 
+    const email = document.getElementById("loginUser").value.trim(); 
+    const password = document.getElementById("loginPass").value.trim(); 
+    const displayName = document.getElementById("loginDisplayName").value.trim(); 
+    const errorMsg = document.getElementById("errorMsg"); 
+    if (!email || !password) { errorMsg.innerText = "❌ Please enter email and password"; return; } 
+    if (selectedRole === 'driver' && !displayName) { errorMsg.innerText = "❌ Please enter your Display Name"; return; } 
+    if (selectedRole === 'driver' && !email.toLowerCase().endsWith('@workerhu.com')) { errorMsg.innerText = "❌ Only Approved email addresses can login as Driver"; return; } 
+    try { 
+        const userCredential = await window.firebase.signInWithEmailAndPassword(window.firebase.auth, email, password); 
+        currentUser = userCredential.user; 
+        const userDoc = await window.firestoreHelpers.getDoc(window.firestoreHelpers.doc(window.firebase.db, "users", currentUser.uid)); 
+        if (!userDoc.exists()) { errorMsg.innerText = "❌ User not found."; return; } 
+        const userData = userDoc.data(); 
+        const userRole = userData.role || "citizen"; 
+        if (selectedRole === 'driver' && userRole !== 'driver') { errorMsg.innerText = "❌ Not registered as Driver"; return; } 
+        if (selectedRole === 'citizen' && userRole !== 'citizen') { errorMsg.innerText = "❌ Not registered as Citizen"; return; } 
+        if (selectedRole === 'admin' && userRole !== 'admin') { errorMsg.innerText = "❌ Not registered as Admin"; return; } 
+        currentUserRole = userRole; 
+        currentUserPoints = userData.points || 0; 
+        document.getElementById("loginPage").style.display = "none"; 
+        document.getElementById("dashboardPage").style.display = "block"; 
+        document.getElementById("welcomeUser").innerHTML = `👋 Welcome, ${userData.displayName || currentUser.email}`; 
+        document.getElementById("rewardPoints").innerText = currentUserPoints; 
+        applyRoleBasedUI(currentUserRole); 
+        initMapAndSystem(); 
+        startAutoRefresh(); 
+        if (currentUserRole === 'admin') testConnection(); 
+        startFirestoreListeners(); 
+        loadHistoricalData('day'); 
+        let storedCam = localStorage.getItem("ecobin_camera_ip"); 
+        if (storedCam) { CAMERA_BASE_URL = storedCam; document.getElementById("globalCameraIp").value = storedCam; document.getElementById("cameraIpDisplay").innerText = storedCam; } 
+        document.getElementById("globalNodemcuIp").value = NODEMCU_URL; 
+    } catch (error) { errorMsg.innerText = "❌ " + (error.message || "Login failed"); } 
+}
+
+async function registerWithFirebase() { 
+    let email = document.getElementById("regUser").value.trim(), displayName = document.getElementById("regDisplayName").value.trim(), password = document.getElementById("regPass").value.trim(), password2 = document.getElementById("regPass2").value.trim(), errorMsg = document.getElementById("regErrorMsg"); 
+    if (!email || !password || !displayName) { errorMsg.innerText = "❌ Fill all fields"; return; } 
+    if (password !== password2) { errorMsg.innerText = "❌ Passwords do not match"; return; } 
+    if (password.length < 6) { errorMsg.innerText = "❌ Password min 6 chars"; return; } 
+    if (selectedRegisterRole === 'driver' && !email.toLowerCase().endsWith('@workerhu.com')) { errorMsg.innerText = "❌ Only Approved email addresses can register as Driver"; return; } 
+    try { 
+        const userCredential = await window.firebase.createUserWithEmailAndPassword(window.firebase.auth, email, password); 
+        await window.firestoreHelpers.setDoc(window.firestoreHelpers.doc(window.firebase.db, "users", userCredential.user.uid), { email, displayName, role: selectedRegisterRole, points: 0, createdAt: window.firestoreHelpers.serverTimestamp() }); 
+        alert(`✅ Registration successful! You registered as ${selectedRegisterRole.toUpperCase()}. Please login.`); 
+        backToLogin(); 
+    } catch (error) { errorMsg.innerText = "❌ " + (error.message || "Registration failed"); } 
+}
+
+async function logoutFirebase() { await window.firebase.signOut(window.firebase.auth); stopAutoRefresh(); if (window.truckInterval) clearInterval(window.truckInterval); if (unsubscribeSensorData) unsubscribeSensorData(); if (unsubscribeLeaderboard) unsubscribeLeaderboard(); if (unsubscribeComplaints) unsubscribeComplaints(); location.reload(); }
+
+function startFirestoreListeners() { 
+    const sensorRef = window.firestoreHelpers.doc(window.firebase.db, "sensors", "liveData"); 
+    unsubscribeSensorData = window.firestoreHelpers.onSnapshot(sensorRef, (doc) => { if (doc.exists()) { const data = doc.data(); bins[0].level = data.bin1 !== undefined ? data.bin1 : bins[0].level; bins[1].level = data.bin2 !== undefined ? data.bin2 : bins[1].level; gasData.level = data.gas !== undefined ? data.gas : gasData.level; updateBinStatus(bins[0]); updateBinStatus(bins[1]); updateGasStatus(); updateDashboardUI(); checkAndAutoResolveComplaints(); } }); 
+    if (currentUserRole === 'citizen' || currentUserRole === 'admin') { 
+        const usersRef = window.firestoreHelpers.collection(window.firebase.db, "users"); 
+        const leaderboardQuery = window.firestoreHelpers.query(usersRef, window.firestoreHelpers.orderBy("points", "desc"), window.firestoreHelpers.limit(10)); 
+        unsubscribeLeaderboard = window.firestoreHelpers.onSnapshot(leaderboardQuery, (snapshot) => { const leaderboardList = document.getElementById("leaderboardList"); if (leaderboardList) { leaderboardList.innerHTML = ""; snapshot.forEach((doc) => { const userData = doc.data(); const li = document.createElement("li"); li.innerText = `${userData.displayName || userData.email.split('@')[0]} - ${userData.points || 0} pts`; leaderboardList.appendChild(li); }); if (snapshot.docs.length > 0) { const topUser = snapshot.docs[0].data(); document.getElementById("topUser").innerText = `${topUser.displayName || topUser.email.split('@')[0]} (${topUser.points || 0} pts)`; } } }); 
+    } 
+    if (currentUserRole === 'driver') { 
+        const complaintsRef = window.firestoreHelpers.collection(window.firebase.db, "complaints"); 
+        const q = window.firestoreHelpers.query(complaintsRef, window.firestoreHelpers.where("resolved", "==", false), window.firestoreHelpers.orderBy("timestamp", "desc")); 
+        unsubscribeComplaints = window.firestoreHelpers.onSnapshot(q, () => loadDriverComplaints()); 
+    } 
+}
+
+async function updateUserPoints(pointsToAdd) { if (!currentUser) return; const userRef = window.firestoreHelpers.doc(window.firebase.db, "users", currentUser.uid); const userDoc = await window.firestoreHelpers.getDoc(userRef); const currentPoints = userDoc.exists() ? (userDoc.data().points || 0) : 0; const newPoints = currentPoints + pointsToAdd; await window.firestoreHelpers.updateDoc(userRef, { points: newPoints }); currentUserPoints = newPoints; document.getElementById("rewardPoints").innerText = newPoints; }
+
+function startAutoRefresh() { if (autoRefreshInterval) clearInterval(autoRefreshInterval); if (refreshCountdownInterval) clearInterval(refreshCountdownInterval); updateRefreshCountdown(); autoRefreshInterval = setInterval(async () => { await fetchESP8266Data(); await updateDashboardUI(); updateMapMarkers(); updateRefreshCountdown(); }, AUTO_TIME); startCountdownUI(); }
+function startCountdownUI() { if (refreshCountdownInterval) clearInterval(refreshCountdownInterval); refreshCountdownInterval = setInterval(() => { if (nextRefreshTime) { const remaining = Math.max(0, nextRefreshTime - Date.now()); const secs = Math.ceil(remaining / 1000); const statusDiv = document.getElementById("autoRefreshStatus"); if (statusDiv && document.getElementById("dashboardPage").style.display === "block") { statusDiv.innerHTML = `🔄 Auto-refresh in ${secs}s`; statusDiv.style.background = secs <= 5 ? "#f57c00" : "rgba(0,0,0,0.7)"; } } }, 1000); }
+function updateRefreshCountdown() { nextRefreshTime = Date.now() + AUTO_TIME; }
+function stopAutoRefresh() { if (autoRefreshInterval) clearInterval(autoRefreshInterval); if (refreshCountdownInterval) clearInterval(refreshCountdownInterval); }
+function getBinStatusClass(level) { return level >= BIN_THRESHOLD ? "critical" : "empty"; }
+function getBinStatusText(level) { return level >= BIN_THRESHOLD ? "Critical 🔴" : "Normal 🟢"; }
+function getGasStatusClass(level) { return level >= GAS_CRIT ? "gas-critical" : (level >= GAS_WARN ? "gas-warning" : "gas-good"); }
+function getGasColor(level) { return level >= GAS_CRIT ? '#d32f2f' : (level >= GAS_WARN ? '#f57c00' : '#ffc107'); }
+function getBinColor(level) { return level >= BIN_THRESHOLD ? '#d32f2f' : '#2e7d32'; }
+async function updateDashboardUI() { for (let i=0; i<2; i++) { if (charts[i]) { let lvl = bins[i].level; charts[i].data.datasets[0].data = [lvl, 100-lvl]; charts[i].data.datasets[0].backgroundColor = [getBinColor(lvl), '#475569']; charts[i].update(); } let percentSpan = document.getElementById(`bin_percent_${i}`); if (percentSpan) percentSpan.innerText = `${bins[i].level}%`; let statusSpan = document.getElementById(`bin_status_${i}`); if (statusSpan) { statusSpan.className = `status ${getBinStatusClass(bins[i].level)}`; statusSpan.innerText = getBinStatusText(bins[i].level); } } if (gasChart) { let lvl = gasData.level; gasChart.data.datasets[0].data = [lvl, 100-lvl]; gasChart.data.datasets[0].backgroundColor = [getGasColor(lvl), '#475569']; gasChart.update(); let gp = document.getElementById(`gas_percent`); if(gp) gp.innerText = `${lvl}%`; let gs = document.getElementById(`gas_status`); if(gs) { gs.className = `status ${getGasStatusClass(lvl)}`; gs.innerText = lvl>=GAS_CRIT ? "Critical 🔴" : (lvl>=GAS_WARN ? "Warning 🟠" : "Good 🟡"); } let aq = document.getElementById(`gas_quality`); if(aq) aq.innerText = gasData.airQuality; } let hasCritical = bins[0].isCritical || bins[1].isCritical || gasData.isCritical; let banner = document.getElementById("alertBanner"); if (banner) banner.style.display = hasCritical ? "block" : "none"; if (currentUser && (currentUserRole === 'citizen' || currentUserRole === 'admin')) document.getElementById("rewardPoints").innerText = currentUserPoints; }
+
+function createBinCard(bin, idx) { const container = document.getElementById("cardsContainer"); const existingCards = container.querySelectorAll('.card'); for (let card of existingCards) if (card.querySelector('h3')?.innerText === bin.name) return; const canvasId = `bin_chart_${idx}`; const card = document.createElement("div"); card.className = "card"; if (currentUserRole === 'driver') { card.innerHTML = `<h3>🗑️ ${bin.name}</h3><p>📍 ${bin.location}</p><canvas id="${canvasId}" style="max-width:170px; margin:0 auto;"></canvas><p><strong style="font-size:32px;" id="bin_percent_${idx}">${bin.level}%</strong> full</p><span class="status ${getBinStatusClass(bin.level)}" id="bin_status_${idx}">${getBinStatusText(bin.level)}</span><br><br><button onclick="openCameraForBin()" style="background:#3b82f6;">🎥 Camera</button>`; } else { card.innerHTML = `<h3>🗑️ ${bin.name}</h3><p>📍 ${bin.location}</p><canvas id="${canvasId}" style="max-width:170px; margin:0 auto;"></canvas><p><strong style="font-size:32px;" id="bin_percent_${idx}">${bin.level}%</strong> full</p><span class="status ${getBinStatusClass(bin.level)}" id="bin_status_${idx}">${getBinStatusText(bin.level)}</span><br><br><button onclick="openComplaintDialog('${bin.name}')" style="background:#f97316;">📢 Complain</button><button onclick="openCameraForBin()" style="background:#3b82f6;">🎥 Camera</button>`; } container.appendChild(card); setTimeout(() => { let canvas = document.getElementById(canvasId); if (canvas) { let chart = new Chart(canvas.getContext('2d'), { type: 'doughnut', data: { datasets: [{ data: [bin.level, 100-bin.level], backgroundColor: [getBinColor(bin.level), '#475569'], borderWidth: 0 }] }, options: { cutout: '68%', responsive: true, plugins: { legend: { display: false } } } }); charts[idx] = chart; } }, 30); }
+
+function createGasCard() { const container = document.getElementById("cardsContainer"); for (let card of container.querySelectorAll('.card')) if (card.querySelector('h3')?.innerText === "🌫️ Air Quality Monitor") return; const canvasId = "gas_chart"; const card = document.createElement("div"); card.className = "card"; if (currentUserRole === 'driver') { card.innerHTML = `<h3>🌫️ ${gasData.name}</h3><p>📍 ${gasData.location}</p><canvas id="${canvasId}" style="max-width:170px; margin:0 auto;"></canvas><p><strong style="font-size:32px;" id="gas_percent">${gasData.level}%</strong> level</p><p>Air Quality: <strong id="gas_quality">${gasData.airQuality}</strong></p><span class="status ${getGasStatusClass(gasData.level)}" id="gas_status">${gasData.level>=GAS_CRIT?"Critical 🔴":(gasData.level>=GAS_WARN?"Warning 🟠":"Good 🟡")}</span><br><br><button onclick="openCameraForBin()" style="background:#3b82f6;">🎥 Camera</button>`; } else { card.innerHTML = `<h3>🌫️ ${gasData.name}</h3><p>📍 ${gasData.location}</p><canvas id="${canvasId}" style="max-width:170px; margin:0 auto;"></canvas><p><strong style="font-size:32px;" id="gas_percent">${gasData.level}%</strong> level</p><p>Air Quality: <strong id="gas_quality">${gasData.airQuality}</strong></p><span class="status ${getGasStatusClass(gasData.level)}" id="gas_status">${gasData.level>=GAS_CRIT?"Critical 🔴":(gasData.level>=GAS_WARN?"Warning 🟠":"Good 🟡")}</span><br><br><button onclick="openComplaintDialog('Air Quality Monitor - Girls Hostel Area 🌫️')" style="background:#f97316;">📢 Complain</button><button onclick="openCameraForBin()" style="background:#3b82f6;">🎥 Camera</button>`; } container.appendChild(card); setTimeout(() => { let canvas = document.getElementById(canvasId); if (canvas) { gasChart = new Chart(canvas.getContext('2d'), { type: 'doughnut', data: { datasets: [{ data: [gasData.level, 100-gasData.level], backgroundColor: [getGasColor(gasData.level), '#475569'], borderWidth: 0 }] }, options: { cutout: '68%', responsive: true, plugins: { legend: { display: false } } } }); } }, 30); }
+
+async function renderFullDashboard() { if (isRendering) return; isRendering = true; const container = document.getElementById("cardsContainer"); if (!container) { isRendering = false; return; } container.innerHTML = ""; if (charts.length) charts.forEach(chart => { if (chart) chart.destroy(); }); charts = []; if (gasChart) { gasChart.destroy(); gasChart = null; } await fetchESP8266Data(); createBinCard(bins[0], 0); createBinCard(bins[1], 1); createGasCard(); updateMapMarkers(); isRendering = false; }
+
+function updateMapMarkers() { if (!globalMap) return; globalMap.eachLayer(layer => { if (layer.options && layer.options.pane === 'markerPane' && layer !== depotMarker && layer !== truckMarker) globalMap.removeLayer(layer); }); const depotIcon = L.divIcon({ html: '🏢', iconSize: [34,34], className: 'depot-icon' }); depotMarker = L.marker([DEPOT.lat, DEPOT.lng], { icon: depotIcon }).addTo(globalMap).bindPopup(`<b>${DEPOT.name}</b><br>🚛 Start`); bins.forEach(b => { let col = b.isCritical ? '#d32f2f' : '#4caf50'; L.circleMarker([b.lat, b.lng], { radius: 14, color: col, fillColor: col, fillOpacity: 0.7 }).bindPopup(`<b>${b.name}</b><br>Fill: ${b.level}%`).addTo(globalMap); }); let gasCol = gasData.isCritical ? '#d32f2f' : (gasData.isWarning ? '#f57c00' : '#ffcc00'); L.circleMarker([gasData.lat, gasData.lng], { radius: 12, color: gasCol, fillColor: gasCol, fillOpacity: 0.7 }).bindPopup(`<b>🌫️ ${gasData.name}</b><br>Level: ${gasData.level}%<br>Status: ${gasData.isCritical ? 'CRITICAL!' : (gasData.isWarning ? 'Warning' : 'Normal')}<br>📍 ${gasData.location}`).addTo(globalMap); }
+
+function calculateDistance(lat1,lng1,lat2,lng2) { const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLng=(lng2-lng1)*Math.PI/180; const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+function getBearing(lat1,lng1,lat2,lng2) { const φ1=lat1*Math.PI/180, φ2=lat2*Math.PI/180; const Δλ=(lng2-lng1)*Math.PI/180; const y=Math.sin(Δλ)*Math.cos(φ2); const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ); const θ=Math.atan2(y,x); return (θ*180/Math.PI+360)%360; }
+function getDirectionIcon(bearing) { if(bearing>=45 && bearing<135) return "⬆️ North"; if(bearing>=135 && bearing<225) return "⬅️ West"; if(bearing>=225 && bearing<315) return "⬇️ South"; return "➡️ East"; }
+function generateTurnByTurn(routePoints) { let steps=[]; for(let i=0;i<routePoints.length-1;i++){ const from=routePoints[i], to=routePoints[i+1]; const dist=calculateDistance(from.lat,from.lng,to.lat,to.lng).toFixed(2); const bearing=getBearing(from.lat,from.lng,to.lat,to.lng); let instruction=(i===0)?`🚀 Start from ${from.name||"Depot"}`:((()=>{const prevBearing=getBearing(routePoints[i-1].lat,routePoints[i-1].lng,from.lat,from.lng);const diff=(bearing-prevBearing+360)%360; if(diff<30||diff>330) return "➡️ Continue straight"; if(diff<150) return "↩️ Turn Right"; return "↪️ Turn Left";})()); steps.push({ from:from.name, to:to.name, direction:getDirectionIcon(bearing), action:instruction||`Go towards ${to.name}`, distance:dist, lat:to.lat, lng:to.lng }); } steps.push({ action:"🏁 Arrived + Return to Depot", distance:"0", direction:"✅" }); return steps; }
+function displayNavigationPanel(steps) { const panel=document.getElementById("navPanel"); const listDiv=document.getElementById("directionsList"); if(!steps||steps.length===0){ listDiv.innerHTML="<div style='text-align:center'>No active route.</div>"; panel.style.display="none"; return; } panel.style.display="block"; let html=""; steps.forEach((step,idx)=>{ const activeClass=(idx===currentStepIndex)?"current-step":""; html+=`<div class="direction-step ${activeClass}" data-step="${idx}"><div class="direction-icon">${step.direction||"📍"}</div><div class="direction-text"><strong>${step.action}</strong> ${step.distance?`(${step.distance} km)`:""}</div></div>`; }); listDiv.innerHTML=html; document.getElementById("navStepCounter").innerHTML=`Step ${currentStepIndex+1}/${steps.length}`; document.getElementById("prevStepBtn").disabled=(currentStepIndex===0); document.getElementById("nextStepBtn").disabled=(currentStepIndex>=steps.length-1); }
+function nextNavigationStep(){ if(currentRouteSteps&&currentStepIndex<currentRouteSteps.length-1){ currentStepIndex++; displayNavigationPanel(currentRouteSteps); if(currentOptimizedRoute[currentStepIndex]) globalMap.setView([currentOptimizedRoute[currentStepIndex].lat, currentOptimizedRoute[currentStepIndex].lng],16); } }
+function prevNavigationStep(){ if(currentStepIndex>0){ currentStepIndex--; displayNavigationPanel(currentRouteSteps); if(currentOptimizedRoute[currentStepIndex]) globalMap.setView([currentOptimizedRoute[currentStepIndex].lat, currentOptimizedRoute[currentStepIndex].lng],16); } }
+function closeNavigationPanel(){ document.getElementById("navPanel").style.display="none"; }
+function startTruckAnimation(route){ if(truckMarker) globalMap.removeLayer(truckMarker); const truckIcon=L.divIcon({html:'🚛',iconSize:[38,38],className:'truck-icon'}); truckMarker=L.marker([route[0].lat,route[0].lng],{icon:truckIcon}).addTo(globalMap); let step=0; if(window.truckInterval) clearInterval(window.truckInterval); window.truckInterval=setInterval(()=>{ if(step>=route.length){ clearInterval(window.truckInterval); if(truckMarker) globalMap.removeLayer(truckMarker); return; } truckMarker.setLatLng([route[step].lat,route[step].lng]); truckMarker.bindPopup(route[step].isDepot?"🏢 Depot":"📍 "+route[step].name).openPopup(); step++; },2200); }
+function openRedeemModal() { if (!currentUser || (currentUserRole !== 'citizen' && currentUserRole !== 'admin')) { alert("Only citizens can redeem points"); return; } let opts=`<div class="redeemOption" onclick="redeemPoints(50,'Sponsor 1 Tree 🌳')"><span>🌳 Sponsor 1 Tree</span><span>50 Points</span></div><div class="redeemOption" onclick="redeemPoints(100,'₹10 Coupon 🎫')"><span>🎫 ₹10 Coupon</span><span>100 Points</span></div><div class="redeemOption" onclick="redeemPoints(300,'Movie/Bus Ticket Discount 🎬')"><span>🎬 Movie/Bus Discount</span><span>300 Points</span></div><div class="redeemOption" onclick="redeemPoints(500,'Swachh Bharat Certificate 🏆')"><span>🏆 Swachh Bharat Certificate</span><span>500 Points</span></div>`; document.getElementById("redeemOptions").innerHTML=opts; document.getElementById("redeemModal").style.display="block"; document.getElementById("redeemOverlay").style.display="block"; }
+function closeRedeemModal() { document.getElementById("redeemModal").style.display="none"; document.getElementById("redeemOverlay").style.display="none"; }
+async function redeemPoints(p,reward){ if(!currentUser){ alert("Login required"); return; } if(currentUserPoints < p){ alert(`❌ Need ${p} points!`); return; } await updateUserPoints(-p); alert(`✅ Redeemed: ${reward} -${p} points`); closeRedeemModal(); }
+let activeComplaintItem="";
+function openComplaintDialog(item){ activeComplaintItem=item; document.getElementById("selectedBinName").innerText="Issue: "+item; document.getElementById("complaintWarning").style.display="none"; document.getElementById("complaintOverlay").style.display="block"; document.getElementById("complaintBox").style.display="block"; }
+function closeComplaintPanel(){ document.getElementById("complaintOverlay").style.display="none"; document.getElementById("complaintBox").style.display="none"; document.getElementById("complainUserName").value=""; document.getElementById("complainMessage").value=""; }
+function openCameraForBin() { let modal = document.getElementById("cameraModal"); if (modal) { modal.style.display = "flex"; refreshCameraStream(); } }
+function closeCameraModal() { document.getElementById("cameraModal").style.display = "none"; }
+function refreshCameraStream() { let img = document.getElementById("liveCamFeed"); if (img) { img.src = getCameraStreamUrl() + "?t=" + Date.now(); } }
+function getCameraStreamUrl() { return `http://${CAMERA_BASE_URL}/stream`; }
+function testCameraConnection() { let imgTest = new Image(); imgTest.onload = () => alert("✅ Camera reachable! Stream appears active."); imgTest.onerror = () => alert("❌ Cannot reach camera. Check IP or ensure stream endpoint is /stream"); imgTest.src = getCameraStreamUrl() + "?t=" + Date.now(); }
+function takeSnapshot() { window.open(getCameraStreamUrl(), '_blank'); }
+function updateSensorStatus(status,msg){ let div=document.getElementById("sensorStatus"); if(div){ div.innerHTML=msg; div.className=`sensor-status ${status}`; } }
+function initMapAndSystem(){ if(globalMap) globalMap.remove(); let center=(DEPOT.lat+BIN1.lat+BIN2.lat+gasData.lat)/4; let centerLng=(DEPOT.lng+BIN1.lng+BIN2.lng+gasData.lng)/4; globalMap=L.map('map').setView([center,centerLng],13); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(globalMap); renderFullDashboard(); }
+async function manualRefresh(){ await fetchESP8266Data(); await updateDashboardUI(); updateMapMarkers(); }
+function showRegisterPanel(){ document.getElementById("loginPage").style.display="none"; document.getElementById("registerPage").style.display="block"; }
+function backToLogin(){ document.getElementById("registerPage").style.display="none"; document.getElementById("loginPage").style.display="block"; }
+function createParticles(){ let container=document.getElementById("particles"); for(let i=0;i<80;i++){ let p=document.createElement("div"); p.className="particle"; let sz=Math.random()*6+2; p.style.width=sz+"px"; p.style.height=sz+"px"; p.style.left=Math.random()*100+"%"; p.style.animationDuration=Math.random()*14+6+"s"; p.style.animationDelay=Math.random()*12+"s"; p.style.background=`radial-gradient(circle, #81c784, #2e7d32)`; container.appendChild(p); } }
+
+window.onload=()=>{ createParticles(); selectRole('citizen'); selectRegisterRole('citizen'); window.firebase.onAuthStateChanged(window.firebase.auth, async (user) => { if (user) { currentUser = user; const userDoc = await window.firestoreHelpers.getDoc(window.firestoreHelpers.doc(window.firebase.db, "users", user.uid)); currentUserRole = userDoc.exists() ? (userDoc.data().role || "citizen") : "citizen"; currentUserPoints = userDoc.exists() ? (userDoc.data().points || 0) : 0; document.getElementById("loginPage").style.display = "none"; document.getElementById("dashboardPage").style.display = "block"; document.getElementById("welcomeUser").innerHTML = `👋 Welcome, ${userDoc.exists() ? userDoc.data().displayName : user.email}`; document.getElementById("rewardPoints").innerText = currentUserPoints; applyRoleBasedUI(currentUserRole); initMapAndSystem(); startAutoRefresh(); if (currentUserRole === 'admin') testConnection(); startFirestoreListeners(); loadHistoricalData('day'); let storedCam = localStorage.getItem("ecobin_camera_ip"); if (storedCam) { CAMERA_BASE_URL = storedCam; document.getElementById("globalCameraIp").value = storedCam; document.getElementById("cameraIpDisplay").innerText = storedCam; } document.getElementById("globalNodemcuIp").value = NODEMCU_URL; } else { document.getElementById("loginPage").style.display = "block"; document.getElementById("dashboardPage").style.display = "none"; } }); };
+</script>
+</body>
+</html>
